@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multiplayer Card Game</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #2c3e50; color: white; margin: 0; padding: 20px; }
+        .hidden { display: none !important; }
+        
+        /* Layout for Launch Screen */
+        #login-screen { text-align: center; margin-top: 50px; }
+        .login-container { display: flex; justify-content: center; gap: 40px; margin-top: 30px; }
+        .login-box { background: rgba(0,0,0,0.3); padding: 30px; border-radius: 10px; width: 300px; }
+        .login-box h2 { margin-top: 0; }
+        input { padding: 10px; width: 80%; margin-bottom: 15px; border-radius: 5px; border: none; font-size: 1em; text-align: center; }
+        button { padding: 10px 20px; font-size: 1.1em; cursor: pointer; border-radius: 5px; border: none; background-color: #3498db; color: white; font-weight: bold; width: 100%; transition: background 0.2s; }
+        button:hover { background-color: #2980b9; }
+        .btn-secondary { background-color: #7f8c8d; width: auto; margin-top: 30px; }
+        .btn-secondary:hover { background-color: #95a5a6; }
+
+        /* Error Message */
+        #error-msg { color: #e74c3c; font-weight: bold; margin-top: 15px; min-height: 20px; }
+
+        /* Modal Styling */
+        #rules-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(5px); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background: #34495e; padding: 30px; border-radius: 10px; width: 80%; max-width: 600px; max-height: 80vh; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.5); line-height: 1.6; }
+        .modal-content h2 { border-bottom: 2px solid white; padding-bottom: 10px; margin-top: 0; }
+        .close-btn { background: #e74c3c; margin-top: 20px; }
+        .close-btn:hover { background: #c0392b; }
+
+        /* Game Board UI */
+        #room-header { background: #1abc9c; padding: 10px; border-radius: 5px; font-weight: bold; display: inline-block; margin-bottom: 20px; }
+        .card { 
+            width: 60px; height: 90px; background-image: url('/card-front.png'); background-size: cover; background-position: center; background-repeat: no-repeat; color: rgb(0, 0, 0); border-radius: 8px; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; margin: 5px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.3); font-weight: bold; user-select: none; border: 1px solid #333; text-shadow: 2px 2px 4px rgba(245, 245, 245, 0.8);
+        }
+        .card.disabled { opacity: 0.5; cursor: not-allowed; }
+        .card .penalties { font-size: 0.8em; color: #ff4757; margin-top: 5px; text-shadow: 1px 1px 2px rgba(0,0,0,0.9); }
+        .hidden-card { background-image: url('/card-back.png'); background-size: cover; background-position: center; background-repeat: no-repeat; border: 2px solid white; color: transparent; text-shadow: none; }
+        .row { display: flex; background: rgba(0,0,0,0.2); padding: 10px; margin-bottom: 10px; min-height: 100px; align-items: center; }
+        .row-container { margin-bottom: 30px; }
+        #pending-area { min-height: 120px; background: rgba(46, 204, 113, 0.2); padding: 10px; border-radius: 8px; margin-bottom: 20px; }
+        #hand { margin-top: 20px; border-top: 2px solid white; padding-top: 20px; display: flex; flex-wrap: wrap; }
+        .player-list { background: rgba(0,0,0,0.4); padding: 10px; margin-bottom: 20px; border-radius: 8px; }
+        #status-message { font-size: 1.5em; color: #f1c40f; font-weight: bold; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+
+    <div id="login-screen">
+        <h1>Welcome to the Game</h1>
+        <div class="login-container">
+            <div class="login-box">
+                <h2>Host a Game</h2>
+                <input type="text" id="hostName" placeholder="Your Name">
+                <button onclick="hostGame()">Create Room</button>
+            </div>
+            
+            <div class="login-box">
+                <h2>Join a Game</h2>
+                <input type="text" id="joinName" placeholder="Your Name">
+                <input type="text" id="joinCode" placeholder="5-Letter Room Code" maxlength="5" style="text-transform: uppercase;">
+                <button onclick="joinGame()">Join Room</button>
+            </div>
+        </div>
+        <div id="error-msg"></div>
+        <button class="btn-secondary" onclick="toggleModal('rules-modal', true)">How to Play</button>
+    </div>
+
+    <div id="rules-modal" class="hidden">
+        <div class="modal-content">
+            <h2>How to Play</h2>
+            <p><strong>Objective:</strong> Finish the game with the fewest penalty points (bullheads). The game lasts for 10 rounds.</p>
+            
+            <h3>The Setup</h3>
+            <p>Four cards are placed face-up in the center to start four distinct rows. Each player receives a hand of 7 cards.</p>
+
+            <h3>Playing a Turn</h3>
+            <ul>
+                <li><strong>Simultaneous Play:</strong> Every player secretly selects one card from their hand to play.</li>
+                <li><strong>The Reveal:</strong> Once all players have locked in their choice, all cards are revealed at the same time.</li>
+                <li><strong>Resolution Order:</strong> The revealed cards are processed in ascending order, from lowest value to highest value.</li>
+            </ul>
+
+            <h3>Placement Rules</h3>
+            <p>When it is your card's turn to be placed onto the board, it must follow these strict rules:</p>
+            <ol>
+                <li><strong>Ascending Order:</strong> Your card must be higher in value than the last card in the row you are placing it in.</li>
+                <li><strong>Smallest Difference:</strong> If your card can legally fit in multiple rows, it <em>must</em> go into the row where the difference between your card and the row's last card is the smallest.</li>
+            </ol>
+
+            <h3>The Penalties</h3>
+            <ul>
+                <li><strong>The 6th Card Rule:</strong> A row can only hold 5 cards safely. If your card becomes the 6th card in a row, you must take the first 5 cards as penalty points. Your played card then becomes the new first card of that row.</li>
+                <li><strong>The "Too Low" Rule:</strong> If you play a card that is lower than the end cards of <em>all four rows</em>, you must take a penalty. The game automatically assigns you the row with the fewest penalty points currently on the board. Your card replaces that row.</li>
+            </ul>
+            
+            <button class="close-btn" onclick="toggleModal('rules-modal', false)">Close Rules</button>
+        </div>
+    </div>
+
+    <div id="game-screen" class="hidden">
+        <div id="room-header">Room Code: <span id="display-room-code"></span></div>
+        <div class="player-list" id="playerList"></div>
+        <button id="startBtn" onclick="startGame()" class="hidden">Start Game</button>
+        
+        <div id="status-message"></div>
+
+        <div id="game-board">
+            <h3>Revealed Cards</h3>
+            <div id="pending-area" class="row"></div>
+
+            <h3>Board (Round <span id="roundNumber">1</span>)</h3>
+            <div id="board" class="row-container"></div>
+        </div>
+
+        <h2>Your Hand (Score: <span id="myScore">0</span>)</h2>
+        <div id="hand"></div>
+    </div>
+
+    <script>
+        const socket = io();
+        let currentRoom = '';
+        let amIReady = false;
+
+        // --- UI Navigation ---
+        function toggleModal(modalId, show) {
+            const modal = document.getElementById(modalId);
+            if (show) modal.classList.remove('hidden');
+            else modal.classList.add('hidden');
+        }
+
+        function showError(msg) {
+            document.getElementById('error-msg').innerText = msg;
+            setTimeout(() => { document.getElementById('error-msg').innerText = ''; }, 3000);
+        }
+
+        // --- Socket Triggers ---
+        function hostGame() {
+            const name = document.getElementById('hostName').value.trim();
+            if (!name) return showError("Please enter your name.");
+            socket.emit('createRoom', name);
+        }
+
+        function joinGame() {
+            const name = document.getElementById('joinName').value.trim();
+            const code = document.getElementById('joinCode').value.trim().toUpperCase();
+            if (!name) return showError("Please enter your name.");
+            if (code.length !== 5) return showError("Room code must be 5 letters.");
+            socket.emit('joinRoom', code, name);
+        }
+
+        function startGame() {
+            socket.emit('startGame', currentRoom);
+        }
+
+        function playCard(cardValue) {
+            if (amIReady) return; 
+            socket.emit('playCard', currentRoom, cardValue);
+        }
+
+        // --- Socket Listeners ---
+        socket.on('errorMsg', (msg) => {
+            showError(msg);
+        });
+
+        socket.on('roomJoined', (code) => {
+            currentRoom = code;
+            document.getElementById('display-room-code').innerText = code;
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('hidden');
+        });
+
+        socket.on('updateState', (state) => {
+            if (!document.startViewTransition) {
+                renderState(state);
+            } else {
+                document.startViewTransition(() => renderState(state));
+            }
+        });
+
+        // --- Rendering Engine ---
+        function renderState(state) {
+            const statusMsg = document.getElementById('status-message');
+            const boardArea = document.getElementById('game-board');
+            
+            if (state.phase === 'WAITING') {
+                document.getElementById('startBtn').classList.remove('hidden');
+                statusMsg.innerText = "Waiting for host to start...";
+                boardArea.classList.add('hidden');
+            } else if (state.phase === 'SHUFFLING') {
+                document.getElementById('startBtn').classList.add('hidden');
+                boardArea.classList.add('hidden');
+                statusMsg.innerText = `Shuffling & Dealing Round ${state.round}...`;
+            } else if (state.phase === 'GAME_OVER') {
+                statusMsg.innerText = "Game Over! Check final scores.";
+                boardArea.classList.add('hidden');
+            } else {
+                document.getElementById('startBtn').classList.add('hidden');
+                boardArea.classList.remove('hidden');
+                if (state.phase === 'RESOLVING') {
+                    statusMsg.innerText = "Resolving turn...";
+                } else {
+                    statusMsg.innerText = "Pick a card to play.";
+                }
+            }
+
+            document.getElementById('roundNumber').innerText = `${state.round} / ${state.maxRounds}`;
+            document.getElementById('myScore').innerText = state.myScore;
+
+            const playerDiv = document.getElementById('playerList');
+            const myPlayerIndex = Object.keys(state.players).findIndex(key => state.myHand.length === state.players[key].cardsLeft);
+            amIReady = state.players[myPlayerIndex]?.ready || false;
+
+            playerDiv.innerHTML = state.players.map(p => {
+                const status = p.ready ? '🟢 Ready' : '🔴 Thinking';
+                return `<span><strong>${p.name}</strong>: ${p.score} pts [${status}]</span>`;
+            }).join(' | ');
+
+            const pendingDiv = document.getElementById('pending-area');
+            pendingDiv.innerHTML = '';
+            if (state.pendingPlays && state.pendingPlays.length > 0) {
+                state.pendingPlays.forEach(play => {
+                    const cardDiv = document.createElement('div');
+                    if (play.hidden) {
+                        cardDiv.className = 'card hidden-card';
+                    } else {
+                        cardDiv.className = 'card';
+                        cardDiv.style.viewTransitionName = `card-${play.card.value}`;
+                        cardDiv.innerHTML = `<span>${play.card.value}</span><span class="penalties">● ${play.card.penalties}</span>`;
+                    }
+                    pendingDiv.appendChild(cardDiv);
+                });
+            }
+
+            const boardDiv = document.getElementById('board');
+            boardDiv.innerHTML = '';
+            state.rows.forEach(row => {
+                const rowDiv = document.createElement('div');
+                rowDiv.className = 'row';
+                row.forEach(card => {
+                    const cardDiv = document.createElement('div');
+                    cardDiv.className = 'card';
+                    cardDiv.style.viewTransitionName = `card-${card.value}`;
+                    cardDiv.innerHTML = `<span>${card.value}</span><span class="penalties">● ${card.penalties}</span>`;
+                    rowDiv.appendChild(cardDiv);
+                });
+                boardDiv.appendChild(rowDiv);
+            });
+
+            const handDiv = document.getElementById('hand');
+            handDiv.innerHTML = '';
+            state.myHand.forEach(card => {
+                const cardDiv = document.createElement('div');
+                cardDiv.className = 'card';
+                cardDiv.style.viewTransitionName = `card-${card.value}`;
+                cardDiv.innerHTML = `<span>${card.value}</span><span class="penalties">● ${card.penalties}</span>`;
+                
+                if (state.phase === 'PLAYING' && !amIReady) {
+                    cardDiv.onclick = () => playCard(card.value);
+                } else {
+                    cardDiv.classList.add('disabled');
+                }
+                handDiv.appendChild(cardDiv);
+            });
+        }
+    </script>
+</body>
+</html>
