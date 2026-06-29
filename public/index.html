@@ -311,12 +311,35 @@
         function startGame() { socket.emit('startGame', currentRoom); }
 
         function submitBets() {
+            // Calculate the dynamic cap based on the current round
+            const maxBet = parseInt(document.getElementById('roundNumber').innerText.split(' / ')[0]) * 5;
+            
+            // Get all stake inputs
+            const stakeElements = [
+                document.getElementById('bet-high-coll-stake'),
+                document.getElementById('bet-low-coll-stake'),
+                document.getElementById('bet-high-card-stake'),
+                document.getElementById('bet-low-card-stake')
+            ];
+
+            // Validate stakes
+            for (let el of stakeElements) {
+                const val = parseInt(el.value) || 0;
+                if (val > maxBet) {
+                    showError(`❌ Invalid Bet! Maximum stake this round is ${maxBet}.`);
+                    return; // Stop execution, prevent softlock
+                }
+            }
+
+            // If we passed validation, prepare the data
             const bets = {
                 highColl: { id: document.getElementById('bet-high-coll').value, stake: parseInt(document.getElementById('bet-high-coll-stake').value) || 0 },
                 lowColl: { id: document.getElementById('bet-low-coll').value, stake: parseInt(document.getElementById('bet-low-coll-stake').value) || 0 },
                 highCard: { val: parseInt(document.getElementById('bet-high-card').value) || 0, stake: parseInt(document.getElementById('bet-high-card-stake').value) || 0 },
                 lowCard: { val: parseInt(document.getElementById('bet-low-card').value) || 0, stake: parseInt(document.getElementById('bet-low-card-stake').value) || 0 }
             };
+
+            // Send to server
             socket.emit('submitBets', currentRoom, myPlayerId, bets);
             document.getElementById('betting-panel').classList.add('hidden');
         }
