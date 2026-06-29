@@ -13,6 +13,19 @@ const rooms = {};
 const socketMap = {}; 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
+// CSS Filter map to transform the base RED card into the specific group colors
+const colorFilters = {
+    "Red": "none",
+    "Yellow": "hue-rotate(55deg) saturate(2)",
+    "Green": "hue-rotate(120deg)",
+    "Turquoise": "hue-rotate(180deg) brightness(1.1)",
+    "Dark Blue": "hue-rotate(240deg) brightness(0.6) saturate(1.2)",
+    "Pink": "hue-rotate(320deg) brightness(1.2) saturate(0.8)",
+    "Brown": "hue-rotate(30deg) grayscale(20%) brightness(0.5)",
+    "Silver": "grayscale(100%) brightness(1.2) contrast(0.9)",
+    "Gunmetal Gray": "grayscale(100%) brightness(0.5) contrast(1.2)"
+};
+
 function getPenalties(num) {
     if (num === 55) return 7;
     if (num % 11 === 0) return 5;
@@ -40,35 +53,35 @@ function generateRoomCode() {
 io.on('connection', (socket) => {
     console.log('User connected:', socket.id);
 
-    socket.on('createRoom', (playerName, playerId) => {
+    socket.on('createRoom', (playerName, playerId, colorChoice) => {
         let roomCode = generateRoomCode();
         while (rooms[roomCode]) roomCode = generateRoomCode();
 
         rooms[roomCode] = {
             players: {}, deck: [], rows: [[], [], [], []], pendingPlays: [],
-            phase: 'WAITING', round: 1, maxRounds: 10,
-            availableHues: [0, 60, 120, 180, 240, 300] // Base, Yellow, Green, Cyan, Blue, Magenta
+            phase: 'WAITING', round: 1, maxRounds: 10
         };
 
         const room = rooms[roomCode];
-        const assignedHue = room.availableHues.shift() || 0;
+        const cssFilter = colorFilters[colorChoice] || "none";
 
         socket.join(roomCode);
         socketMap[socket.id] = { roomCode, playerId };
         room.players[playerId] = { 
             name: playerName, hand: [], score: 0, ready: false, selectedCard: null, 
-            connected: true, socketId: socket.id, hue: assignedHue 
+            connected: true, socketId: socket.id, cssFilter: cssFilter 
         };
         
         socket.emit('roomJoined', roomCode);
         io.to(roomCode).emit('updateState', sanitizeState(room, playerId));
     });
 
-    socket.on('joinRoom', (roomCode, playerName, playerId) => {
+    socket.on('joinRoom', (roomCode, playerName, playerId, colorChoice) => {
         roomCode = roomCode.toUpperCase();
         const room = rooms[roomCode];
         if (!room) return socket.emit('errorMsg', 'Room not found.');
 
+        // Rejoin Logic ignores the new color choice and uses their persistent seat
         if (room.players[playerId]) {
             socket.join(roomCode);
             socketMap[socket.id] = { roomCode, playerId };
@@ -80,12 +93,13 @@ io.on('connection', (socket) => {
 
         if (room.phase !== 'WAITING') return socket.emit('errorMsg', 'Game has already started.');
 
-        const assignedHue = room.availableHues.shift() || 0;
+        const cssFilter = colorFilters[colorChoice] || "none";
+        
         socket.join(roomCode);
         socketMap[socket.id] = { roomCode, playerId };
         room.players[playerId] = { 
             name: playerName, hand: [], score: 0, ready: false, selectedCard: null, 
-            connected: true, socketId: socket.id, hue: assignedHue
+            connected: true, socketId: socket.id, cssFilter: cssFilter
         };
         
         socket.emit('roomJoined', roomCode);
@@ -95,7 +109,6 @@ io.on('connection', (socket) => {
     socket.on('leaveRoom', (roomCode, playerId) => {
         const room = rooms[roomCode];
         if (room && room.players[playerId]) {
-            room.availableHues.push(room.players[playerId].hue); 
             delete room.players[playerId]; 
             socket.leave(roomCode);
             delete socketMap[socket.id];
@@ -138,7 +151,7 @@ io.on('connection', (socket) => {
             room.deck = generateDeck();
             for (let i = 0; i < 4; i++) {
                 let card = room.deck.pop();
-                card.ownerHue = 0; 
+                card.ownerFilter = "none"; // Board center cards remain base red
                 room.rows[i] = [card];
             }
             for (const playerId in room.players) {
@@ -163,7 +176,7 @@ io.on('connection', (socket) => {
         if (cardIndex === -1) return;
         
         const playedCard = player.hand.splice(cardIndex, 1)[0];
-        playedCard.ownerHue = player.hue; 
+        playedCard.ownerFilter = player.cssFilter; // Apply player's specific color
         
         player.selectedCard = playedCard;
         player.ready = true;
@@ -283,7 +296,7 @@ io.on('connection', (socket) => {
             amIReady: room.players[requestPlayerId]?.ready || false, 
             players: Object.entries(room.players).map(([id, p]) => ({
                 name: p.name, score: p.score, ready: p.ready, connected: p.connected,
-                hue: p.hue, 
+                cssFilter: p.cssFilter, // Sent to frontend for UI rendering
                 isMe: id === requestPlayerId
             }))
         };
