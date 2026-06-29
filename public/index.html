@@ -7,15 +7,15 @@
     <script src="/socket.io/socket.io.js"></script>
     <style>
         body { 
-    font-family: Arial, sans-serif; 
-    background-image: url('/background.jpg'); 
-    background-size: cover; 
-    background-position: center; 
-    background-attachment: fixed; /* Keeps the background locked in place if you scroll */
-    color: white; 
-    margin: 0; 
-    padding: 20px; 
-}
+            font-family: Arial, sans-serif; 
+            background-image: url('/background.jpg'); 
+            background-size: cover; 
+            background-position: center; 
+            background-attachment: fixed; 
+            color: white; 
+            margin: 0; 
+            padding: 20px; 
+        }
         .hidden { display: none !important; }
         
         #login-screen { text-align: center; margin-top: 50px; }
@@ -32,7 +32,7 @@
         .modal-content { background: #34495e; padding: 30px; border-radius: 10px; width: 80%; max-width: 600px; max-height: 80vh; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.5); line-height: 1.6; }
         .close-btn { background: #e74c3c; margin-top: 20px; }
 
-        /* Betting Panel - Placed inline so they can see their hand and board */
+        /* Betting Panel */
         #betting-panel { background: rgba(241, 196, 15, 0.1); border: 2px solid #f1c40f; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
         .bet-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
         .bet-item { background: rgba(0,0,0,0.3); padding: 10px; border-radius: 5px; }
@@ -48,19 +48,29 @@
         .player-list { background: rgba(0,0,0,0.4); padding: 10px; margin-bottom: 20px; border-radius: 8px; }
         #status-message { font-size: 1.5em; color: #f1c40f; font-weight: bold; margin-bottom: 20px; }
 
-        /* Card Setup */
+        /* Card Setup (Layered for bold text protection) */
         .card { 
-            width: 60px; height: 90px; background-image: url('/card-front.png'); background-size: cover; background-position: center; 
+            position: relative; 
+            width: 60px; height: 90px; 
             border-radius: 8px; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; 
             margin: 5px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.3); font-weight: bold; user-select: none; border: 1px solid #333; 
+            overflow: hidden; 
+            z-index: 1;
         }
-        .card > span:first-child { color: black; font-size: 1.2em; text-shadow: none; }
+
+        .card-bg {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-image: url('/card-front.png'); background-size: cover; background-position: center;
+            z-index: -1; 
+        }
+
+        .card > span:nth-of-type(1) { color: black; font-size: 1.2em; text-shadow: none; }
         
         .card.disabled { opacity: 0.5; cursor: not-allowed; }
         .card .penalties { font-size: 0.8em; color: #ff4757; margin-top: 5px; text-shadow: 1px 1px 2px rgba(0,0,0,0.9); }
         
-        .hidden-card { background-image: url('/card-back.png'); background-size: cover; border: 2px solid white; color: transparent; text-shadow: none; }
-        .hidden-card > span:first-child { color: transparent; }
+        .hidden-card .card-bg { background-image: url('/card-back.png'); }
+        .hidden-card > span:nth-of-type(1) { color: transparent; }
 
         .color-badge { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 5px; vertical-align: middle; border: 1px solid white;}
 
@@ -176,22 +186,22 @@
                 <div class="bet-item">
                     <label>Highest Points Collector</label>
                     <select id="bet-high-coll"><option value="">-- Select Player --</option></select>
-                    <input type="number" id="bet-high-coll-stake" min="0" max="50" placeholder="Stake amount">
+                    <input type="number" id="bet-high-coll-stake" min="0" placeholder="Stake amount">
                 </div>
                 <div class="bet-item">
                     <label>Lowest Points Collector</label>
                     <select id="bet-low-coll"><option value="">-- Select Player --</option></select>
-                    <input type="number" id="bet-low-coll-stake" min="0" max="50" placeholder="Stake amount">
+                    <input type="number" id="bet-low-coll-stake" min="0" placeholder="Stake amount">
                 </div>
                 <div class="bet-item">
                     <label>Highest Board Card (End of Round)</label>
                     <input type="number" id="bet-high-card" min="1" max="104" placeholder="Card Value">
-                    <input type="number" id="bet-high-card-stake" min="0" max="50" placeholder="Stake amount">
+                    <input type="number" id="bet-high-card-stake" min="0" placeholder="Stake amount">
                 </div>
                 <div class="bet-item">
                     <label>Lowest Board Card (End of Round)</label>
                     <input type="number" id="bet-low-card" min="1" max="104" placeholder="Card Value">
-                    <input type="number" id="bet-low-card-stake" min="0" max="50" placeholder="Stake amount">
+                    <input type="number" id="bet-low-card-stake" min="0" placeholder="Stake amount">
                 </div>
             </div>
             <button onclick="submitBets()">Lock In Bets</button>
@@ -219,7 +229,6 @@
             if (show) modal.classList.remove('hidden'); else modal.classList.add('hidden');
         }
 
-        // --- Audio Logic with Strict Equalization ---
         function toggleMute() {
             const music = document.getElementById('bg-music');
             const muteBtn = document.getElementById('muteBtn');
@@ -230,7 +239,6 @@
         socket.on('playSound', (sfxName) => {
             const sound = document.getElementById(`sfx-${sfxName}`);
             if (sound) {
-                // Highly equalized: selection is clear, placing is quiet
                 sound.volume = sfxName === 'lay' ? 0.15 : 0.4; 
                 sound.currentTime = 0; 
                 sound.play().catch(e => e);
@@ -239,7 +247,7 @@
 
         socket.on('penaltyAlert', (data) => {
             const penSound = document.getElementById('sfx-penalty');
-            penSound.volume = 0.2; // Keep this quiet
+            penSound.volume = 0.2; 
             penSound.play().catch(e=>e);
             
             const container = document.getElementById('toast-container');
@@ -357,30 +365,30 @@
                 document.getElementById('startBtn').classList.add('hidden');
                 boardArea.classList.remove('hidden');
                 
-                // Show betting panel if we haven't locked in
                 if (!state.amIReady) {
                     betPanel.classList.remove('hidden');
                     statusMsg.innerText = "Place your side bets!";
                     
-                    // Dynamic Max Bet Logic
                     const maxBet = state.round * 5;
                     const stakeInputs = [
                         'bet-high-coll-stake', 'bet-low-coll-stake', 
                         'bet-high-card-stake', 'bet-low-card-stake'
                     ];
                     
-                    // Update all input fields with the new max
                     stakeInputs.forEach(id => {
                         const el = document.getElementById(id);
                         el.max = maxBet;
                         el.placeholder = `Stake (Max: ${maxBet})`;
                     });
 
-                    // Populate dropdowns
                     const opts = `<option value="">-- Select Player --</option>` + state.players.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
                     document.getElementById('bet-high-coll').innerHTML = opts;
                     document.getElementById('bet-low-coll').innerHTML = opts;
                 } else {
+                    betPanel.classList.add('hidden');
+                    statusMsg.innerText = "Waiting for others to finish betting...";
+                }
+            } else {
                 document.getElementById('startBtn').classList.add('hidden');
                 boardArea.classList.remove('hidden');
                 betPanel.classList.add('hidden');
@@ -432,18 +440,23 @@
             const cardDiv = document.createElement('div');
             if (isHidden) {
                 cardDiv.className = 'card hidden-card';
-                cardDiv.innerHTML = `<span>?</span>`; 
+                cardDiv.innerHTML = `<div class="card-bg"></div><span>?</span>`; 
             } else {
                 cardDiv.className = 'card';
                 cardDiv.style.viewTransitionName = `card-${cardData.value}`;
                 
+                let applyFilter = "none";
                 if (overrideFilter && overrideFilter !== "none") {
-                    cardDiv.style.filter = overrideFilter;
+                    applyFilter = overrideFilter;
                 } else if (cardData.ownerFilter && cardData.ownerFilter !== "none") {
-                    cardDiv.style.filter = cardData.ownerFilter;
+                    applyFilter = cardData.ownerFilter;
                 }
                 
-                cardDiv.innerHTML = `<span>${cardData.value}</span><span class="penalties">● ${cardData.penalties}</span>`;
+                cardDiv.innerHTML = `
+                    <div class="card-bg" style="filter: ${applyFilter};"></div>
+                    <span>${cardData.value}</span>
+                    <span class="penalties" style="filter: ${applyFilter};">● ${cardData.penalties}</span>
+                `;
             }
             return cardDiv;
         }
