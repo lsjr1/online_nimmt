@@ -175,6 +175,16 @@ io.on('connection', (socket) => {
         const player = room.players[playerId];
         if (!player) return;
 
+        // Dynamic Max Bet: Round Number * 5
+        const maxBet = room.round * 5;
+
+        // Verify all submitted stakes against the cap
+        for (let key in bets) {
+            if (bets[key].stake > maxBet) {
+                return socket.emit('errorMsg', `Bet exceeds round cap! Max bet is ${maxBet}.`);
+            }
+        }
+
         player.bets = bets;
         player.ready = true;
 
