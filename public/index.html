@@ -18,10 +18,19 @@
         .btn-secondary { background-color: #7f8c8d; width: auto; margin-top: 30px; }
         #error-msg { color: #e74c3c; font-weight: bold; margin-top: 15px; min-height: 20px; }
         
-        #rules-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(5px); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+        /* Modals & Overlays */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(5px); display: flex; justify-content: center; align-items: center; z-index: 1000; }
         .modal-content { background: #34495e; padding: 30px; border-radius: 10px; width: 80%; max-width: 600px; max-height: 80vh; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.5); line-height: 1.6; }
         .close-btn { background: #e74c3c; margin-top: 20px; }
 
+        /* Betting Panel - Placed inline so they can see their hand and board */
+        #betting-panel { background: rgba(241, 196, 15, 0.1); border: 2px solid #f1c40f; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .bet-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+        .bet-item { background: rgba(0,0,0,0.3); padding: 10px; border-radius: 5px; }
+        .bet-item label { display: block; font-weight: bold; margin-bottom: 5px; color: #f1c40f; font-size: 0.9em; }
+        .bet-item select, .bet-item input { margin-bottom: 5px; padding: 5px; }
+
+        /* Game Board */
         #room-header { background: #1abc9c; padding: 10px; border-radius: 5px; font-weight: bold; display: inline-block; margin-bottom: 20px; }
         .row { display: flex; background: rgba(0,0,0,0.2); padding: 10px; margin-bottom: 10px; min-height: 100px; align-items: center; }
         .row-container { margin-bottom: 30px; }
@@ -30,19 +39,19 @@
         .player-list { background: rgba(0,0,0,0.4); padding: 10px; margin-bottom: 20px; border-radius: 8px; }
         #status-message { font-size: 1.5em; color: #f1c40f; font-weight: bold; margin-bottom: 20px; }
 
+        /* Card Setup */
         .card { 
             width: 60px; height: 90px; background-image: url('/card-front.png'); background-size: cover; background-position: center; 
             border-radius: 8px; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; 
             margin: 5px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.3); font-weight: bold; user-select: none; border: 1px solid #333; 
         }
-        
-        /* Force the main card number to be black so it stands out against the white center */
-        .card > span:first-child { color: black; font-size: 1.5em; text-shadow: none; }
+        .card > span:first-child { color: black; font-size: 1.2em; text-shadow: none; }
         
         .card.disabled { opacity: 0.5; cursor: not-allowed; }
         .card .penalties { font-size: 0.8em; color: #ff4757; margin-top: 5px; text-shadow: 1px 1px 2px rgba(0,0,0,0.9); }
+        
         .hidden-card { background-image: url('/card-back.png'); background-size: cover; border: 2px solid white; color: transparent; text-shadow: none; }
-        .hidden-card > span:first-child { color: transparent; } /* Hide text on card backs */
+        .hidden-card > span:first-child { color: transparent; }
 
         .color-badge { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 5px; vertical-align: middle; border: 1px solid white;}
 
@@ -67,8 +76,8 @@
                 <h2>Host a Game</h2>
                 <input type="text" id="hostName" placeholder="Your Name">
                 <select id="hostColor">
-                    <option value="Yellow">Yellow</option>
                     <option value="Red">Red</option>
+                    <option value="Yellow">Yellow</option>
                     <option value="Dark Blue">Dark Blue</option>
                     <option value="Turquoise">Turquoise</option>
                     <option value="Silver">Silver</option>
@@ -101,13 +110,13 @@
         <button class="btn-secondary" onclick="toggleModal('rules-modal', true)">How to Play</button>
     </div>
 
-    <div id="rules-modal" class="hidden">
+    <div id="rules-modal" class="modal-overlay hidden">
         <div class="modal-content">
             <h2>How to Play</h2>
             <p><strong>Objective:</strong> Finish the game with the fewest penalty points (bullheads). The game lasts for 10 rounds.</p>
             <h3>Playing a Turn</h3>
             <ul>
-                <li><strong>Simultaneous Play:</strong> Every player secretly selects one card from their hand to play.</li>
+                <li><strong>Simultaneous Play:</strong> Every player secretly selects one card from their hand.</li>
                 <li><strong>Resolution Order:</strong> Revealed cards are processed in ascending order, from lowest to highest.</li>
             </ul>
             <h3>Placement & Penalties</h3>
@@ -121,15 +130,57 @@
         </div>
     </div>
 
+    <div id="bet-results-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h2 style="color: #f1c40f;">Round Results & Payouts</h2>
+            <div style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 5px; margin-bottom: 15px;">
+                <p><strong>Highest Points Collector:</strong> <span id="res-high-coll"></span></p>
+                <p><strong>Lowest Points Collector:</strong> <span id="res-low-coll"></span></p>
+                <p><strong>Highest Card Seen:</strong> <span id="res-high-card"></span></p>
+                <p><strong>Lowest Card Seen:</strong> <span id="res-low-card"></span></p>
+            </div>
+            <div id="res-summary"></div>
+            <p style="text-align: center; color: #bdc3c7; font-size: 0.9em; margin-top: 20px;">Next round starting shortly...</p>
+        </div>
+    </div>
+
     <div id="game-screen" class="hidden">
         <button onclick="leaveGame()" style="width: auto; padding: 5px 10px; float: right; background-color: #c0392b;">🚪 Leave</button>
-        <button id="muteBtn" onclick="toggleMute()" style="width: auto; padding: 5px 10px; float: right; margin-right: 10px; background-color: #e67e22;">🎵 Mute Music</button>
+        <button id="muteBtn" onclick="toggleMute()" style="width: auto; padding: 5px 10px; float: right; margin-right: 10px; background-color: #e67e22;">🎵 Mute</button>
         
         <div id="room-header">Room Code: <span id="display-room-code"></span></div>
         <div class="player-list" id="playerList"></div>
         <button id="startBtn" onclick="startGame()" class="hidden">Start Game</button>
         
         <div id="status-message"></div>
+
+        <div id="betting-panel" class="hidden">
+            <h3>💸 Side Bets (Optional)</h3>
+            <p style="font-size: 0.9em; margin-top: 0;">Look at the board and your hand below. If you win, your stake is deducted from your score. If you lose, it is added.</p>
+            <div class="bet-grid">
+                <div class="bet-item">
+                    <label>Highest Points Collector</label>
+                    <select id="bet-high-coll"><option value="">-- Select Player --</option></select>
+                    <input type="number" id="bet-high-coll-stake" min="0" max="50" placeholder="Stake amount">
+                </div>
+                <div class="bet-item">
+                    <label>Lowest Points Collector</label>
+                    <select id="bet-low-coll"><option value="">-- Select Player --</option></select>
+                    <input type="number" id="bet-low-coll-stake" min="0" max="50" placeholder="Stake amount">
+                </div>
+                <div class="bet-item">
+                    <label>Highest Card Seen (1-104)</label>
+                    <input type="number" id="bet-high-card" min="1" max="104" placeholder="Card Value">
+                    <input type="number" id="bet-high-card-stake" min="0" max="50" placeholder="Stake amount">
+                </div>
+                <div class="bet-item">
+                    <label>Lowest Card Seen (1-104)</label>
+                    <input type="number" id="bet-low-card" min="1" max="104" placeholder="Card Value">
+                    <input type="number" id="bet-low-card-stake" min="0" max="50" placeholder="Stake amount">
+                </div>
+            </div>
+            <button onclick="submitBets()">Lock In Bets</button>
+        </div>
 
         <div id="game-board">
             <h3>Revealed Cards</h3>
@@ -157,14 +208,14 @@
         function toggleMute() {
             const music = document.getElementById('bg-music');
             const muteBtn = document.getElementById('muteBtn');
-            if (music.paused) { music.play(); muteBtn.innerText = "🎵 Mute Music"; muteBtn.style.backgroundColor = "#e67e22"; } 
-            else { music.pause(); muteBtn.innerText = "🔇 Unmute Music"; muteBtn.style.backgroundColor = "#7f8c8d"; }
+            if (music.paused) { music.play(); muteBtn.innerText = "🎵 Mute"; muteBtn.style.backgroundColor = "#e67e22"; } 
+            else { music.pause(); muteBtn.innerText = "🔇 Unmute"; muteBtn.style.backgroundColor = "#7f8c8d"; }
         }
 
         socket.on('playSound', (sfxName) => {
             const sound = document.getElementById(`sfx-${sfxName}`);
             if (sound) {
-                // Heavily drop the volume of the laying sound so it doesn't clip
+                // Highly equalized: selection is clear, placing is quiet
                 sound.volume = sfxName === 'lay' ? 0.15 : 0.4; 
                 sound.currentTime = 0; 
                 sound.play().catch(e => e);
@@ -173,7 +224,7 @@
 
         socket.on('penaltyAlert', (data) => {
             const penSound = document.getElementById('sfx-penalty');
-            penSound.volume = 0.2; // Dropped significantly from 0.5
+            penSound.volume = 0.2; // Keep this quiet
             penSound.play().catch(e=>e);
             
             const container = document.getElementById('toast-container');
@@ -182,6 +233,28 @@
             toast.innerText = `🚨 ${data.name} picked up ${data.points} points!`;
             container.appendChild(toast);
             setTimeout(() => { toast.remove(); }, 3000); 
+        });
+
+        socket.on('showBetResults', (data) => {
+            document.getElementById('res-high-coll').innerText = data.highCollectors;
+            document.getElementById('res-low-coll').innerText = data.lowCollectors;
+            document.getElementById('res-high-card').innerText = data.highCard;
+            document.getElementById('res-low-card').innerText = data.lowCard;
+            
+            const sumDiv = document.getElementById('res-summary');
+            sumDiv.innerHTML = data.summary.map(s => `
+                <div style="margin-top: 10px; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 5px;">
+                    <strong style="color: ${s.netChange < 0 ? '#2ecc71' : (s.netChange > 0 ? '#e74c3c' : 'white')};">
+                        ${s.name}: ${s.netChange > 0 ? '+' : ''}${s.netChange} pts
+                    </strong>
+                    <ul style="margin: 5px 0 0 0; padding-left: 20px; font-size: 0.9em;">
+                        ${s.log.map(l => `<li>${l}</li>`).join('')}
+                    </ul>
+                </div>
+            `).join('');
+            
+            toggleModal('bet-results-modal', true);
+            setTimeout(() => { toggleModal('bet-results-modal', false); }, 9500); 
         });
 
         function showError(msg) {
@@ -214,6 +287,17 @@
 
         function startGame() { socket.emit('startGame', currentRoom); }
 
+        function submitBets() {
+            const bets = {
+                highColl: { id: document.getElementById('bet-high-coll').value, stake: parseInt(document.getElementById('bet-high-coll-stake').value) || 0 },
+                lowColl: { id: document.getElementById('bet-low-coll').value, stake: parseInt(document.getElementById('bet-low-coll-stake').value) || 0 },
+                highCard: { val: parseInt(document.getElementById('bet-high-card').value) || 0, stake: parseInt(document.getElementById('bet-high-card-stake').value) || 0 },
+                lowCard: { val: parseInt(document.getElementById('bet-low-card').value) || 0, stake: parseInt(document.getElementById('bet-low-card-stake').value) || 0 }
+            };
+            socket.emit('submitBets', currentRoom, myPlayerId, bets);
+            document.getElementById('betting-panel').classList.add('hidden');
+        }
+
         function playCard(cardValue) {
             if (amIReady) return; 
             const selSound = document.getElementById('sfx-select');
@@ -242,18 +326,38 @@
         function renderState(state) {
             const statusMsg = document.getElementById('status-message');
             const boardArea = document.getElementById('game-board');
+            const betPanel = document.getElementById('betting-panel');
             
             if (state.phase === 'WAITING') {
                 document.getElementById('startBtn').classList.remove('hidden');
                 statusMsg.innerText = "Waiting for host to start...";
                 boardArea.classList.add('hidden');
+                betPanel.classList.add('hidden');
             } else if (state.phase === 'SHUFFLING' || state.phase === 'GAME_OVER') {
                 document.getElementById('startBtn').classList.add('hidden');
                 boardArea.classList.add('hidden');
+                betPanel.classList.add('hidden');
                 statusMsg.innerText = state.phase === 'SHUFFLING' ? `Shuffling & Dealing Round ${state.round}...` : "Game Over!";
+            } else if (state.phase === 'BETTING') {
+                document.getElementById('startBtn').classList.add('hidden');
+                boardArea.classList.remove('hidden');
+                
+                // Show betting panel if we haven't locked in
+                if (!state.amIReady) {
+                    betPanel.classList.remove('hidden');
+                    statusMsg.innerText = "Place your side bets!";
+                    // Populate dropdowns
+                    const opts = `<option value="">-- Select Player --</option>` + state.players.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+                    document.getElementById('bet-high-coll').innerHTML = opts;
+                    document.getElementById('bet-low-coll').innerHTML = opts;
+                } else {
+                    betPanel.classList.add('hidden');
+                    statusMsg.innerText = "Waiting for others to finish betting...";
+                }
             } else {
                 document.getElementById('startBtn').classList.add('hidden');
                 boardArea.classList.remove('hidden');
+                betPanel.classList.add('hidden');
                 statusMsg.innerText = state.phase === 'RESOLVING' ? "Resolving turn..." : "Pick a card to play.";
             }
 
@@ -261,7 +365,6 @@
             document.getElementById('myScore').innerText = state.myScore;
             amIReady = state.amIReady; 
 
-            // Extract your personal CSS filter to color your hand accurately
             const myPlayerObj = state.players.find(p => p.isMe);
             const myFilter = myPlayerObj ? myPlayerObj.cssFilter : "none";
 
@@ -292,7 +395,6 @@
             const handDiv = document.getElementById('hand');
             handDiv.innerHTML = '';
             state.myHand.forEach(card => {
-                // Pass myFilter to ensure cards in hand match the chosen color
                 const cardDiv = buildCard(card, false, myFilter);
                 if (state.phase === 'PLAYING' && !amIReady) cardDiv.onclick = () => playCard(card.value);
                 else cardDiv.classList.add('disabled');
@@ -300,7 +402,6 @@
             });
         }
 
-        // Added an optional overrideFilter argument to force hand cards to match the player color
         function buildCard(cardData, isHidden, overrideFilter = null) {
             const cardDiv = document.createElement('div');
             if (isHidden) {
@@ -310,7 +411,6 @@
                 cardDiv.className = 'card';
                 cardDiv.style.viewTransitionName = `card-${cardData.value}`;
                 
-                // Prioritize the override filter (for hand), fallback to the stamped owner filter (for board)
                 if (overrideFilter && overrideFilter !== "none") {
                     cardDiv.style.filter = overrideFilter;
                 } else if (cardData.ownerFilter && cardData.ownerFilter !== "none") {
