@@ -361,15 +361,26 @@
                 if (!state.amIReady) {
                     betPanel.classList.remove('hidden');
                     statusMsg.innerText = "Place your side bets!";
+                    
+                    // Dynamic Max Bet Logic
+                    const maxBet = state.round * 5;
+                    const stakeInputs = [
+                        'bet-high-coll-stake', 'bet-low-coll-stake', 
+                        'bet-high-card-stake', 'bet-low-card-stake'
+                    ];
+                    
+                    // Update all input fields with the new max
+                    stakeInputs.forEach(id => {
+                        const el = document.getElementById(id);
+                        el.max = maxBet;
+                        el.placeholder = `Stake (Max: ${maxBet})`;
+                    });
+
                     // Populate dropdowns
                     const opts = `<option value="">-- Select Player --</option>` + state.players.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
                     document.getElementById('bet-high-coll').innerHTML = opts;
                     document.getElementById('bet-low-coll').innerHTML = opts;
                 } else {
-                    betPanel.classList.add('hidden');
-                    statusMsg.innerText = "Waiting for others to finish betting...";
-                }
-            } else {
                 document.getElementById('startBtn').classList.add('hidden');
                 boardArea.classList.remove('hidden');
                 betPanel.classList.add('hidden');
