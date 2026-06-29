@@ -15,14 +15,15 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 const colorFilters = {
     "Red": "none",
-    "Yellow": "hue-rotate(55deg) saturate(2)",
+    "Yellow": "hue-rotate(71deg) brightness(2.5) saturate(0.8) contrast(2.2)",
     "Green": "hue-rotate(120deg)",
-    "Turquoise": "hue-rotate(180deg) brightness(1.1)",
+    "Turquoise": "hue-rotate(180deg) brightness(2)",
     "Dark Blue": "hue-rotate(240deg) brightness(0.6) saturate(1.2)",
     "Pink": "hue-rotate(320deg) brightness(1.2) saturate(0.8)",
+    "Purple": "hue-rotate(270deg) saturate(0.8)",
     "Brown": "hue-rotate(30deg) grayscale(20%) brightness(0.5)",
     "Silver": "grayscale(100%) brightness(1.2) contrast(0.9)",
-    "Gunmetal Gray": "grayscale(100%) brightness(0.5) contrast(1.2)"
+    "Grey": "grayscale(100%) brightness(0.5) contrast(1.2)"
 };
 
 function getPenalties(num) {
