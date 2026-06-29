@@ -318,7 +318,7 @@ io.on('connection', (socket) => {
             else if (pts === minPts) { minPlayers.push(id); }
         }
 
-        // --- NEW: Calculate the final board state ---
+        // Calculate the final board state
         let endCards = room.rows.map(row => row[row.length - 1].value);
         let highestBoardCard = Math.max(...endCards);
         let lowestBoardCard = Math.min(...endCards);
