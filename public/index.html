@@ -11,8 +11,8 @@
         
         #login-screen { text-align: center; margin-top: 50px; }
         .login-container { display: flex; justify-content: center; gap: 40px; margin-top: 30px; }
-        .login-box { background: rgba(0,0,0,0.3); padding: 30px; border-radius: 10px; width: 300px; }
-        input { padding: 10px; width: 80%; margin-bottom: 15px; border-radius: 5px; border: none; text-align: center; font-size: 1em; }
+        .login-box { background: rgba(0,0,0,0.3); padding: 30px; border-radius: 10px; width: 300px; display: flex; flex-direction: column; gap: 15px;}
+        input, select { padding: 10px; border-radius: 5px; border: none; text-align: center; font-size: 1em; width: 100%; box-sizing: border-box; }
         button { padding: 10px 20px; font-weight: bold; cursor: pointer; border-radius: 5px; border: none; background-color: #3498db; color: white; width: 100%; transition: background 0.2s; }
         button:hover { background-color: #2980b9; }
         .btn-secondary { background-color: #7f8c8d; width: auto; margin-top: 30px; }
@@ -32,12 +32,17 @@
 
         .card { 
             width: 60px; height: 90px; background-image: url('/card-front.png'); background-size: cover; background-position: center; 
-            color: white; border-radius: 8px; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; 
-            margin: 5px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.3); font-weight: bold; user-select: none; border: 1px solid #333; text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            border-radius: 8px; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; 
+            margin: 5px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.3); font-weight: bold; user-select: none; border: 1px solid #333; 
         }
+        
+        /* Force the main card number to be black so it stands out against the white center */
+        .card > span:first-child { color: black; font-size: 1.5em; text-shadow: none; }
+        
         .card.disabled { opacity: 0.5; cursor: not-allowed; }
         .card .penalties { font-size: 0.8em; color: #ff4757; margin-top: 5px; text-shadow: 1px 1px 2px rgba(0,0,0,0.9); }
         .hidden-card { background-image: url('/card-back.png'); background-size: cover; border: 2px solid white; color: transparent; text-shadow: none; }
+        .hidden-card > span:first-child { color: transparent; } /* Hide text on card backs */
 
         .color-badge { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 5px; vertical-align: middle; border: 1px solid white;}
 
@@ -61,12 +66,34 @@
             <div class="login-box">
                 <h2>Host a Game</h2>
                 <input type="text" id="hostName" placeholder="Your Name">
+                <select id="hostColor">
+                    <option value="Yellow">Yellow</option>
+                    <option value="Red">Red</option>
+                    <option value="Dark Blue">Dark Blue</option>
+                    <option value="Turquoise">Turquoise</option>
+                    <option value="Silver">Silver</option>
+                    <option value="Gunmetal Gray">Gunmetal Gray</option>
+                    <option value="Pink">Pink</option>
+                    <option value="Green">Green</option>
+                    <option value="Brown">Brown</option>
+                </select>
                 <button onclick="hostGame()">Create Room</button>
             </div>
             <div class="login-box">
                 <h2>Join a Game</h2>
                 <input type="text" id="joinName" placeholder="Your Name">
-                <input type="text" id="joinCode" placeholder="5-Letter Room Code" maxlength="5" style="text-transform: uppercase;">
+                <input type="text" id="joinCode" placeholder="5-Letter Code" maxlength="5" style="text-transform: uppercase;">
+                <select id="joinColor">
+                    <option value="Yellow">Yellow</option>
+                    <option value="Red">Red</option>
+                    <option value="Dark Blue">Dark Blue</option>
+                    <option value="Turquoise">Turquoise</option>
+                    <option value="Silver">Silver</option>
+                    <option value="Gunmetal Gray">Gunmetal Gray</option>
+                    <option value="Pink">Pink</option>
+                    <option value="Green">Green</option>
+                    <option value="Brown">Brown</option>
+                </select>
                 <button onclick="joinGame()">Join Room</button>
             </div>
         </div>
@@ -126,7 +153,7 @@
             if (show) modal.classList.remove('hidden'); else modal.classList.add('hidden');
         }
 
-        // --- Audio Logic with Volume Control ---
+        // --- Audio Logic with Strict Equalization ---
         function toggleMute() {
             const music = document.getElementById('bg-music');
             const muteBtn = document.getElementById('muteBtn');
@@ -137,7 +164,8 @@
         socket.on('playSound', (sfxName) => {
             const sound = document.getElementById(`sfx-${sfxName}`);
             if (sound) {
-                sound.volume = 0.4; // Fixed low volume
+                // Heavily drop the volume of the laying sound so it doesn't clip
+                sound.volume = sfxName === 'lay' ? 0.15 : 0.4; 
                 sound.currentTime = 0; 
                 sound.play().catch(e => e);
             }
@@ -145,7 +173,7 @@
 
         socket.on('penaltyAlert', (data) => {
             const penSound = document.getElementById('sfx-penalty');
-            penSound.volume = 0.5;
+            penSound.volume = 0.2; // Dropped significantly from 0.5
             penSound.play().catch(e=>e);
             
             const container = document.getElementById('toast-container');
@@ -163,15 +191,17 @@
 
         function hostGame() {
             const name = document.getElementById('hostName').value.trim();
+            const color = document.getElementById('hostColor').value;
             if (!name) return showError("Please enter your name.");
-            socket.emit('createRoom', name, myPlayerId);
+            socket.emit('createRoom', name, myPlayerId, color);
         }
 
         function joinGame() {
             const name = document.getElementById('joinName').value.trim();
             const code = document.getElementById('joinCode').value.trim().toUpperCase();
+            const color = document.getElementById('joinColor').value;
             if (!name || code.length !== 5) return showError("Valid name and 5-letter code required.");
-            socket.emit('joinRoom', code, name, myPlayerId);
+            socket.emit('joinRoom', code, name, myPlayerId, color);
         }
 
         function leaveGame() {
@@ -187,7 +217,7 @@
         function playCard(cardValue) {
             if (amIReady) return; 
             const selSound = document.getElementById('sfx-select');
-            selSound.volume = 0.3;
+            selSound.volume = 0.4; 
             selSound.play().catch(e=>e); 
             socket.emit('playCard', currentRoom, cardValue, myPlayerId);
         }
@@ -198,7 +228,7 @@
             document.getElementById('login-screen').classList.add('hidden');
             document.getElementById('game-screen').classList.remove('hidden');
             const music = document.getElementById('bg-music');
-            music.volume = 0.15; // Set lounge track low
+            music.volume = 0.15; 
             music.play().catch(e=>e);
         });
 
@@ -231,11 +261,15 @@
             document.getElementById('myScore').innerText = state.myScore;
             amIReady = state.amIReady; 
 
+            // Extract your personal CSS filter to color your hand accurately
+            const myPlayerObj = state.players.find(p => p.isMe);
+            const myFilter = myPlayerObj ? myPlayerObj.cssFilter : "none";
+
             document.getElementById('playerList').innerHTML = state.players.map(p => {
                 let status = p.ready ? '🟢 Ready' : '🔴 Thinking';
                 if (!p.connected) status = '🌑 Offline';
                 
-                const badgeStyle = `background-color: red; filter: hue-rotate(${p.hue}deg);`;
+                const badgeStyle = `background-color: red; filter: ${p.cssFilter};`;
                 const meIndicator = p.isMe ? ' (You)' : '';
                 const txtStyle = p.connected ? '' : 'style="opacity: 0.5; text-decoration: line-through;"';
                 
@@ -258,21 +292,31 @@
             const handDiv = document.getElementById('hand');
             handDiv.innerHTML = '';
             state.myHand.forEach(card => {
-                const cardDiv = buildCard(card, false);
+                // Pass myFilter to ensure cards in hand match the chosen color
+                const cardDiv = buildCard(card, false, myFilter);
                 if (state.phase === 'PLAYING' && !amIReady) cardDiv.onclick = () => playCard(card.value);
                 else cardDiv.classList.add('disabled');
                 handDiv.appendChild(cardDiv);
             });
         }
 
-        function buildCard(cardData, isHidden) {
+        // Added an optional overrideFilter argument to force hand cards to match the player color
+        function buildCard(cardData, isHidden, overrideFilter = null) {
             const cardDiv = document.createElement('div');
             if (isHidden) {
                 cardDiv.className = 'card hidden-card';
+                cardDiv.innerHTML = `<span>?</span>`; 
             } else {
                 cardDiv.className = 'card';
                 cardDiv.style.viewTransitionName = `card-${cardData.value}`;
-                if (cardData.ownerHue) cardDiv.style.filter = `hue-rotate(${cardData.ownerHue}deg)`;
+                
+                // Prioritize the override filter (for hand), fallback to the stamped owner filter (for board)
+                if (overrideFilter && overrideFilter !== "none") {
+                    cardDiv.style.filter = overrideFilter;
+                } else if (cardData.ownerFilter && cardData.ownerFilter !== "none") {
+                    cardDiv.style.filter = cardData.ownerFilter;
+                }
+                
                 cardDiv.innerHTML = `<span>${cardData.value}</span><span class="penalties">● ${cardData.penalties}</span>`;
             }
             return cardDiv;
