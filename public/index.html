@@ -148,8 +148,8 @@
             <div style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 5px; margin-bottom: 15px;">
                 <p><strong>Highest Points Collector:</strong> <span id="res-high-coll"></span></p>
                 <p><strong>Lowest Points Collector:</strong> <span id="res-low-coll"></span></p>
-                <p><strong>Highest Card Seen:</strong> <span id="res-high-card"></span></p>
-                <p><strong>Lowest Card Seen:</strong> <span id="res-low-card"></span></p>
+                <p><strong>Highest Board Card (End of Round):</strong> <span id="res-high-card"></span></p>
+                <p><strong>Lowest Board Card (End of Round):</strong> <span id="res-low-card"></span></p>
             </div>
             <div id="res-summary"></div>
             <p style="text-align: center; color: #bdc3c7; font-size: 0.9em; margin-top: 20px;">Next round starting shortly...</p>
@@ -168,7 +168,10 @@
 
         <div id="betting-panel" class="hidden">
             <h3>💸 Side Bets (Optional)</h3>
-            <p style="font-size: 0.9em; margin-top: 0;">Look at the board and your hand below. If you win, your stake is deducted from your score. If you lose, it is added.</p>
+            <p style="font-size: 0.9em; margin-top: 0; color: #bdc3c7;">
+                Look at the board and your hand below. Win a bet to deduct the stake from your score (good!). Lose to add it to your score (bad!).<br>
+                <strong style="color: #e74c3c;">Note:</strong> The "Highest/Lowest Board Card" bets look ONLY at the 4 visible cards at the ends of the rows when the round officially finishes!
+            </p>
             <div class="bet-grid">
                 <div class="bet-item">
                     <label>Highest Points Collector</label>
@@ -181,12 +184,12 @@
                     <input type="number" id="bet-low-coll-stake" min="0" max="50" placeholder="Stake amount">
                 </div>
                 <div class="bet-item">
-                    <label>Highest Card Seen (1-104)</label>
+                    <label>Highest Board Card (End of Round)</label>
                     <input type="number" id="bet-high-card" min="1" max="104" placeholder="Card Value">
                     <input type="number" id="bet-high-card-stake" min="0" max="50" placeholder="Stake amount">
                 </div>
                 <div class="bet-item">
-                    <label>Lowest Card Seen (1-104)</label>
+                    <label>Lowest Board Card (End of Round)</label>
                     <input type="number" id="bet-low-card" min="1" max="104" placeholder="Card Value">
                     <input type="number" id="bet-low-card-stake" min="0" max="50" placeholder="Stake amount">
                 </div>
