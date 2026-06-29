@@ -148,26 +148,20 @@ io.on('connection', (socket) => {
 
         setTimeout(() => {
             room.deck = generateDeck();
-            let initialMax = 0;
-            let initialMin = 105;
-
             for (let i = 0; i < 4; i++) {
                 let card = room.deck.pop();
                 card.ownerFilter = "none"; 
                 room.rows[i] = [card];
-                if(card.value > initialMax) initialMax = card.value;
-                if(card.value < initialMin) initialMin = card.value;
             }
-
-            room.currentRoundStats = { playerPoints: {}, highestCard: initialMax, lowestCard: initialMin };
+            room.currentRoundStats = { playerPoints: {} };
 
             for (const playerId in room.players) {
                 room.players[playerId].hand = room.deck.splice(0, 7);
                 room.players[playerId].hand.sort((a, b) => a.value - b.value);
                 room.players[playerId].ready = false;
                 room.players[playerId].selectedCard = null;
-                room.players[playerId].bets = {}; // Clear old bets
-                room.currentRoundStats.playerPoints[playerId] = 0; // Initialize round points
+                room.players[playerId].bets = {}; 
+                room.currentRoundStats.playerPoints[playerId] = 0; 
             }
             
             room.phase = 'BETTING';
@@ -175,7 +169,6 @@ io.on('connection', (socket) => {
         }, 3000);
     }
 
-    // --- Side Bet Processing ---
     socket.on('submitBets', (roomCode, playerId, bets) => {
         const room = rooms[roomCode];
         if (!room || room.phase !== 'BETTING') return;
@@ -240,10 +233,6 @@ io.on('connection', (socket) => {
             let bestRowIndex = -1;
             let smallestDiff = Infinity;
 
-            // Track stats for side bets
-            if (play.card.value > room.currentRoundStats.highestCard) room.currentRoundStats.highestCard = play.card.value;
-            if (play.card.value < room.currentRoundStats.lowestCard) room.currentRoundStats.lowestCard = play.card.value;
-
             for (let i = 0; i < 4; i++) {
                 const lastCardInRow = room.rows[i][room.rows[i].length - 1];
                 if (!lastCardInRow) continue; 
@@ -268,7 +257,7 @@ io.on('connection', (socket) => {
                 }
                 if (room.players[play.playerId]) {
                     room.players[play.playerId].score += lowestPenalty;
-                    room.currentRoundStats.playerPoints[play.playerId] += lowestPenalty; // Track round pts
+                    room.currentRoundStats.playerPoints[play.playerId] += lowestPenalty; 
                     io.to(roomCode).emit('penaltyAlert', { name: room.players[play.playerId].name, points: lowestPenalty });
                 }
                 room.rows[bestRowIndex] = [play.card];
@@ -280,7 +269,7 @@ io.on('connection', (socket) => {
                     const rowPenalty = room.rows[bestRowIndex].slice(0, 5).reduce((sum, c) => sum + c.penalties, 0);
                     if (room.players[play.playerId]) {
                         room.players[play.playerId].score += rowPenalty;
-                        room.currentRoundStats.playerPoints[play.playerId] += rowPenalty; // Track round pts
+                        room.currentRoundStats.playerPoints[play.playerId] += rowPenalty; 
                         io.to(roomCode).emit('penaltyAlert', { name: room.players[play.playerId].name, points: rowPenalty });
                     }
                     room.rows[bestRowIndex] = [play.card]; 
@@ -310,7 +299,6 @@ io.on('connection', (socket) => {
         let maxPts = -1, minPts = Infinity;
         let maxPlayers = [], minPlayers = [];
 
-        // Determine Highest/Lowest point collectors of the round
         for (let id in room.currentRoundStats.playerPoints) {
             let pts = room.currentRoundStats.playerPoints[id];
             if (pts > maxPts) { maxPts = pts; maxPlayers = [id]; } 
@@ -319,6 +307,11 @@ io.on('connection', (socket) => {
             if (pts < minPts) { minPts = pts; minPlayers = [id]; } 
             else if (pts === minPts) { minPlayers.push(id); }
         }
+
+        // --- NEW: Calculate the final board state ---
+        let endCards = room.rows.map(row => row[row.length - 1].value);
+        let highestBoardCard = Math.max(...endCards);
+        let lowestBoardCard = Math.min(...endCards);
 
         let summary = [];
 
@@ -348,21 +341,21 @@ io.on('connection', (socket) => {
                     }
                 }
                 if (p.bets.highCard && p.bets.highCard.stake > 0) {
-                    if (p.bets.highCard.val === room.currentRoundStats.highestCard) {
+                    if (p.bets.highCard.val === highestBoardCard) {
                         netChange -= p.bets.highCard.stake;
-                        betLog.push(`✅ Won -${p.bets.highCard.stake} (Highest Card: ${room.currentRoundStats.highestCard})`);
+                        betLog.push(`✅ Won -${p.bets.highCard.stake} (Highest Board Card: ${highestBoardCard})`);
                     } else {
                         netChange += p.bets.highCard.stake;
-                        betLog.push(`❌ Lost +${p.bets.highCard.stake} (Highest Card was ${room.currentRoundStats.highestCard})`);
+                        betLog.push(`❌ Lost +${p.bets.highCard.stake} (Highest Board Card was ${highestBoardCard})`);
                     }
                 }
                 if (p.bets.lowCard && p.bets.lowCard.stake > 0) {
-                    if (p.bets.lowCard.val === room.currentRoundStats.lowestCard) {
+                    if (p.bets.lowCard.val === lowestBoardCard) {
                         netChange -= p.bets.lowCard.stake;
-                        betLog.push(`✅ Won -${p.bets.lowCard.stake} (Lowest Card: ${room.currentRoundStats.lowestCard})`);
+                        betLog.push(`✅ Won -${p.bets.lowCard.stake} (Lowest Board Card: ${lowestBoardCard})`);
                     } else {
                         netChange += p.bets.lowCard.stake;
-                        betLog.push(`❌ Lost +${p.bets.lowCard.stake} (Lowest Card was ${room.currentRoundStats.lowestCard})`);
+                        betLog.push(`❌ Lost +${p.bets.lowCard.stake} (Lowest Board Card was ${lowestBoardCard})`);
                     }
                 }
             }
@@ -376,14 +369,13 @@ io.on('connection', (socket) => {
         io.to(roomCode).emit('showBetResults', {
             highCollectors: maxPlayers.map(id => room.players[id].name).join(', '),
             lowCollectors: minPlayers.map(id => room.players[id].name).join(', '),
-            highCard: room.currentRoundStats.highestCard,
-            lowCard: room.currentRoundStats.lowestCard,
+            highCard: highestBoardCard,
+            lowCard: lowestBoardCard,
             summary: summary
         });
 
         updateAllClients(roomCode);
 
-        // Pause for 10 seconds to read results, then shuffle for next round
         setTimeout(() => {
             room.round++;
             startNewRound(roomCode);
