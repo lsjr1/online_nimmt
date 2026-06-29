@@ -15,7 +15,7 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 const colorFilters = {
     "Red": "none",
-    "Yellow": "hue-rotate(71deg) brightness(2.5) saturate(0.8) contrast(2.2)",
+    "Yellow": "hue-rotate(58deg) brightness(3) saturate(1.2) contrast(0.8)",
     "Green": "hue-rotate(120deg)",
     "Turquoise": "hue-rotate(180deg) brightness(2)",
     "Dark Blue": "hue-rotate(240deg) brightness(0.6) saturate(1.2)",
